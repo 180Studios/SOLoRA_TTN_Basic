@@ -38,7 +38,7 @@
 
 // Set DEBUG_MESSAGES to 1 to enable progress messaging to USB terminal
 // Set DEBUG_MESSAGES to 0 for final firmware compile for field use with no USB terminal
-#define DEBUG_MESSAGES (0)  
+#define DEBUG_MESSAGES 0  
 //
 #if DEBUG_MESSAGES
     #define D(x) Serial.print(x);
@@ -129,29 +129,33 @@ void onEvent (ev_t ev) {
         case EV_JOINED:
             DL(F("EV_JOINED"));
             {
-              u4_t netid = 0;
-              devaddr_t devaddr = 0;
-              u1_t nwkKey[16];
-              u1_t artKey[16];
-              LMIC_getSessionKeys(&netid, &devaddr, nwkKey, artKey);
-              D("netid: ");
-              DL2(netid, DEC);
-              D("devaddr: ");
-              DL2(devaddr, HEX);
-              D("artKey: ");
-              for (int i=0; i<sizeof(artKey); ++i) {
+                u4_t netid = 0;
+                devaddr_t devaddr = 0;
+                u1_t nwkKey[16];
+                u1_t artKey[16];
+                LMIC_getSessionKeys(&netid, &devaddr, nwkKey, artKey);
+                D("netid: ");
+                DL2(netid, DEC);
+                D("devaddr: ");
+                DL2(devaddr, HEX);
+                D("artKey: ");
+                for (int i=0; i<sizeof(artKey); ++i) {
                 if (i != 0)
-                  D("-");
+                    D("-");
                 D2(artKey[i], HEX);
-              }
-              DL("");
-              D("nwkKey: ");
-              for (int i=0; i<sizeof(nwkKey); ++i) {
-                      if (i != 0)
-                              D("-");
-                      D2(nwkKey[i], HEX);
-              }
-              DL("");
+                }
+                DL("");
+                D("nwkKey: ");
+                for (int i=0; i<sizeof(nwkKey); ++i) {
+                        if (i != 0)
+                                D("-");
+                        D2(nwkKey[i], HEX);
+                }
+                DL("");
+                // Blink twice to show join success
+                digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);delay(100);
+                digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);
+
             }
             // Disable link check validation (automatically enabled
             // during join, but because slow data rates change max TX
@@ -168,10 +172,17 @@ void onEvent (ev_t ev) {
         */
         case EV_JOIN_FAILED:
             DL(F("EV_JOIN_FAILED"));
+            // Blink three times to denote join fail
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);
             break;
         case EV_REJOIN_FAILED:
             DL(F("EV_REJOIN_FAILED"));
-            break;
+            // Blink three times to denote join fail
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
+            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);
             break;
         case EV_TXCOMPLETE:
             DL(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
@@ -182,9 +193,12 @@ void onEvent (ev_t ev) {
               DL(LMIC.dataLen);
               DL(F(" bytes of payload"));
             }
+            // Blink one once to denote txComplete
+            digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);
             // Schedule next transmission
             os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
             break;
+//            break;
         case EV_LOST_TSYNC:
             DL(F("EV_LOST_TSYNC"));
             break;
@@ -262,7 +276,7 @@ void setup() {
     // initialize ADC for Battery 
     //init_readBatteryVoltage();
     //
-    
+
     //
     // Put your sensor initialization calls here 
     //
@@ -273,7 +287,7 @@ void setup() {
     LMIC_reset();
 
     LMIC_setLinkCheckMode(0);
-    LMIC_setDrTxpow(DR_SF7,14);
+    LMIC_setDrTxpow(DR_SF7,14); //
     LMIC_selectSubBand(1);
 
     // Start job (sending automatically starts OTAA too)

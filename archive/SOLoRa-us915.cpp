@@ -54,17 +54,17 @@
 // first. When copying an EUI from ttnctl output, this means to reverse
 // the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
 // 0x70.
-static const u1_t PROGMEM APPEUI[8]= { 0xA9, 0x09, 0x01, 0xD0, 0x7E, 0xD5, 0xB3, 0x70 };
+static const u1_t PROGMEM APPEUI[8]= { FILLMEIN };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
 // This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8]= { 0x6F, 0xDA, 0x2A, 0x00, 0x68, 0xB4, 0x84, 0x00 };
+static const u1_t PROGMEM DEVEUI[8]= { FILLMEIN };
 void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 
-// This key should be in BIG endian format (or, since it is not really a
+// This key should be in big endian format (or, since it is not really a
 // number but a block of memory, endianness does not really apply). In
 // practice, a key taken from the TTN console can be copied as-is.
-static const u1_t PROGMEM APPKEY[16] = { 0x26, 0x12, 0x02, 0x4C, 0x0C, 0x80, 0x02, 0xAE, 0xB3, 0xD9, 0xDE, 0x19, 0x91, 0x5E, 0x79, 0x6C };
+static const u1_t PROGMEM APPKEY[16] = { FILLMEIN };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
 static uint8_t mydata[] = "Hello, world!";
@@ -76,7 +76,7 @@ const unsigned TX_INTERVAL = 60;
 
 // Pin mapping
 #if defined(ARDUINO_SAMD_FEATHER_M0)
-// Pin mapping for Adafruit Feather M0 LoRa, SOLoRa, etc.
+// Pin mapping for Adafruit Feather M0 LoRa, etc.
 const lmic_pinmap lmic_pins = {
     .nss = 8,
     .rxtx = LMIC_UNUSED_PIN,
@@ -85,6 +85,20 @@ const lmic_pinmap lmic_pins = {
     .rxtx_rx_active = 0,
     .rssi_cal = 8,              // LBT cal for the Adafruit Feather M0 LoRa, in dB
     .spi_freq = 8000000,
+};
+#elif defined(ARDUINO_CATENA_4551)
+// Pin mapping for Murata module / Catena 4551
+const lmic_pinmap lmic_pins = {
+        .nss = 7,
+        .rxtx = 29,
+        .rst = 8,
+        .dio = { 25,    // DIO0 (IRQ) is D25
+                 26,    // DIO1 is D26
+                 27,    // DIO2 is D27
+               },
+        .rxtx_rx_active = 1,
+        .rssi_cal = 10,
+        .spi_freq = 8000000     // 8MHz
 };
 #else
 # error "Unknown target"
@@ -215,18 +229,18 @@ void do_send(osjob_t* j){
 }
 
 void setup() {
-      // initialize digital pin LED_BUILTIN as an output.
-    pinMode(LED_BUILTIN, OUTPUT);
-    delay(1000);    // 2 x blinks to confirm startup
-    digitalWrite(LED_BUILTIN, HIGH);delay(200);digitalWrite(LED_BUILTIN, LOW);delay(200);
-    digitalWrite(LED_BUILTIN, HIGH);delay(200);digitalWrite(LED_BUILTIN, LOW);delay(200);
-    digitalWrite(LED_BUILTIN, LOW);   // turn off the LED
-
-    delay(3000);
+    delay(5000);
     while (! Serial)
         ;
     Serial.begin(9600);
     Serial.println(F("Starting"));
+
+    #ifdef VCC_ENABLE
+    // For Pinoccio Scout boards
+    pinMode(VCC_ENABLE, OUTPUT);
+    digitalWrite(VCC_ENABLE, HIGH);
+    delay(1000);
+    #endif
 
     // LMIC init
     os_init();

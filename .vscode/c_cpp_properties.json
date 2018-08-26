@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:\\Users\\heyjo\\AppData\\Local\\Arduino15\\packages\\adafruit\\hardware\\samd\\1.2.0\\cores\\arduino",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/Adafruit_ASFcore/**",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/Adafruit_GPS/**",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/Adafruit_SSD1306/**",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/Adafruit_ZeroTimer/**",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/Adafruit-GFX-Library/**",
+                "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/arduino-lmic/src/**",
+                "C:/Program Files (x86)/Arduino/hardware/arduino/avr/libraries/**",
+                "C:/Program Files (x86)/Arduino/libraries/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false,
+                "path": [
+                    "C:\\Users\\heyjo\\AppData\\Local\\Arduino15\\packages\\adafruit\\hardware\\samd\\1.2.0\\cores\\arduino",
+                    "C:/Users/heyjo/OneDrive/Documents/Arduino/libraries/arduino-lmic/src/**"
+                ]
+            }
+        }
+    ],
+    "version": 4
+}

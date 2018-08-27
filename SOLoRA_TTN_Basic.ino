@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Copyright (c) 2015 Thomas Telkamp and Matthijs Kooijman
  * Copyright (c) 2018 Terry Moore, MCCI
- * Copyright (c) 2018 Joe Miller
+ * Modified 2018 Joe Miller for SOLoRa 
  * 
  * Permission is hereby granted, free of charge, to anyone
  * obtaining a copy of this document and accompanying files,
@@ -11,8 +11,8 @@
  *
  * This example sends a valid LoRaWAN packet with payload "Hello,
  * world!", using frequency and encryption settings matching those of
- * the The Things Network. It's pre-configured for
- * Joe MIller's SOLoRa Board (M0, Arduino Zero and Adafruit M0 feather compatible)
+ * the The Things Network. It's pre-configured for the
+ * SOLoRa Board (M0, Arduino Zero and Adafruit M0 feather compatible)
  *
  * This uses OTAA (Over-the-air activation), where where a DevEUI and
  * application key is configured, which are used in an over-the-air
@@ -38,7 +38,7 @@
 
 // Set DEBUG_MESSAGES to 1 to enable progress messaging to USB terminal
 // Set DEBUG_MESSAGES to 0 for final firmware compile for field use with no USB terminal
-#define DEBUG_MESSAGES 0  
+#define DEBUG_MESSAGES 0   
 //
 #if DEBUG_MESSAGES
     #define D(x) Serial.print(x);
@@ -52,6 +52,7 @@
     #define DL2(x,y) 
 #endif
 
+#define LED (13)  // SOLoRa Red LED port pin
 
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
@@ -67,20 +68,20 @@
 # define FILLMEIN (#dont edit this, edit the lines that use FILLMEIN)
 #endif
 
-// This EUI must be in little-endian format, so least-significant-byte
+// This EUI must be in little-endian format, so least-significant-byte (LSB x x ... x x MSB)
 // first. When copying an EUI from ttnctl output, this means to reverse
-// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
-// 0x70.
+// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,0x70.
 static const u1_t PROGMEM APPEUI[8]= { 0xA9, 0x09, 0x01, 0xD0, 0x7E, 0xD5, 0xB3, 0x70 };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
-// This should also be in little endian format, see above.
+// This should also be in little endian format, see above. (LSB x x ... x x MSB)
 static const u1_t PROGMEM DEVEUI[8]= { 0x6F, 0xDA, 0x2A, 0x00, 0x68, 0xB4, 0x84, 0x00 };
 void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 
 // This key should be in BIG endian format (or, since it is not really a
 // number but a block of memory, endianness does not really apply). In
 // practice, a key taken from the TTN console can be copied as-is.
+// (MSB x x x x x x x x x x x x x x LSB)
 static const u1_t PROGMEM APPKEY[16] = { 0x26, 0x12, 0x02, 0x4C, 0x0C, 0x80, 0x02, 0xAE, 0xB3, 0xD9, 0xDE, 0x19, 0x91, 0x5E, 0x79, 0x6C };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
@@ -92,20 +93,20 @@ static osjob_t sendjob;
 const unsigned TX_INTERVAL = 60;
 
 // Pin mapping
-#if defined(ARDUINO_SAMD_FEATHER_M0)
+//#if defined(ARDUINO_SAMD_FEATHER_M0)
 // Pin mapping for Adafruit Feather M0 LoRa, SOLoRa, etc.
 const lmic_pinmap lmic_pins = {
     .nss = 8,
     .rxtx = LMIC_UNUSED_PIN,
     .rst = 4,
-    .dio = {3, 6, LMIC_UNUSED_PIN},
+    .dio = {3, 11, LMIC_UNUSED_PIN},
     .rxtx_rx_active = 0,
     .rssi_cal = 8,              // LBT cal for the Adafruit Feather M0 LoRa, in dB
     .spi_freq = 8000000,
 };
-#else
-# error "Unknown target"
-#endif
+//#else
+//# error "Unknown target"
+//#endif
 
 void onEvent (ev_t ev) {
     D(os_getTime());
@@ -153,8 +154,8 @@ void onEvent (ev_t ev) {
                 }
                 DL("");
                 // Blink twice to show join success
-                digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);delay(100);
-                digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);
+               digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);delay(100);
+               digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);
 
             }
             // Disable link check validation (automatically enabled
@@ -173,16 +174,16 @@ void onEvent (ev_t ev) {
         case EV_JOIN_FAILED:
             DL(F("EV_JOIN_FAILED"));
             // Blink three times to denote join fail
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);delay(100);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);delay(100);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);
             break;
         case EV_REJOIN_FAILED:
             DL(F("EV_REJOIN_FAILED"));
             // Blink three times to denote join fail
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);delay(100);
-            digitalWrite(LED_BUILTIN, HIGH);delay(100);digitalWrite(LED_BUILTIN, LOW);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);delay(100);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);delay(100);
+            digitalWrite(LED, HIGH);delay(100);digitalWrite(LED, LOW);
             break;
         case EV_TXCOMPLETE:
             DL(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
@@ -193,8 +194,8 @@ void onEvent (ev_t ev) {
               DL(LMIC.dataLen);
               DL(F(" bytes of payload"));
             }
-            // Blink one once to denote txComplete
-            digitalWrite(LED_BUILTIN, HIGH);delay(50);digitalWrite(LED_BUILTIN, LOW);
+            // Blink one once to denote txComplete. comment next statement to save power (~50uA*s/transmission)
+            digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);
             // Schedule next transmission
             os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
             break;
@@ -246,12 +247,12 @@ void do_send(osjob_t* j){
 }
 
 void setup() {
-      // initialize digital pin LED_BUILTIN as an output.
-    pinMode(LED_BUILTIN, OUTPUT);
+      // initialize digital pin LED as an output.
+    pinMode(LED, OUTPUT);
     delay(1000);    // 2 x blinks to confirm startup
-    digitalWrite(LED_BUILTIN, HIGH);delay(200);digitalWrite(LED_BUILTIN, LOW);delay(200);
-    digitalWrite(LED_BUILTIN, HIGH);delay(200);digitalWrite(LED_BUILTIN, LOW);delay(200);
-    digitalWrite(LED_BUILTIN, LOW);   // turn off the LED
+    digitalWrite(LED, HIGH);delay(200);digitalWrite(LED, LOW);delay(200);
+    digitalWrite(LED, HIGH);delay(200);digitalWrite(LED, LOW);delay(200);
+    digitalWrite(LED, LOW);   // turn off the LED
 
     delay(3000);
     #if DEBUG_MESSAGES // Debug mode, use serial port
@@ -287,7 +288,7 @@ void setup() {
     LMIC_reset();
 
     LMIC_setLinkCheckMode(0);
-    LMIC_setDrTxpow(DR_SF7,14); //
+    LMIC_setDrTxpow(DR_SF7,2); //
     LMIC_selectSubBand(1);
 
     // Start job (sending automatically starts OTAA too)

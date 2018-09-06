@@ -1,7 +1,8 @@
 /*******************************************************************************
  * Copyright (c) 2015 Thomas Telkamp and Matthijs Kooijman
  * Copyright (c) 2018 Terry Moore, MCCI
- * Modified 2018 Joe Miller for SOLoRa 
+ * Modified 2018 Joe Miller for SOLoRa.
+ *              Also added sleep after 'hello world' sent 
  * 
  * Permission is hereby granted, free of charge, to anyone
  * obtaining a copy of this document and accompanying files,
@@ -35,10 +36,34 @@
 #include <lmic.h>
 #include <hal/hal.h>
 #include <SPI.h>
+//#include "LowPower.h"
+#include <RTCZero.h>
 
-// Set DEBUG_MESSAGES to 1 to enable progress messaging to USB terminal
-// Set DEBUG_MESSAGES to 0 for final firmware compile for field use with no USB terminal
-#define DEBUG_MESSAGES 0   
+// system operation type. Choose either RTC_TIMER wakeups for reporting (this example), 
+//    or interrupt based (HW_ITNERRUPT), in which case your sensor must invoke a hardware
+//    pin setup in Arduino as an interrupt input ...
+//    attachInterrupt(digitalPinToInterrupt(pin), ISR, mode);
+//    where: pin  = 5,6,9,10,12,14,15,16,17,18,19 (available SOLoRa pins)
+//    where: ISR  = &yourISRFunction();
+//    where: mode = LOW to trigger the interrupt whenever the pin is low,
+//                  CHANGE to trigger the interrupt whenever the pin changes value
+//                  RISING to trigger when the pin goes from low to high,
+//                  FALLING for when the pin goes from high to low.
+//                  HIGH to trigger the interrupt whenever the pin is high.
+#define RTC_TIMER       (0)
+#define HW_INTERRUPT    (1)
+// Set wakeup type below.
+#define WAKEUP_TYPE     RTC_TIMER  //<<<<<<<<<<< Set this
+
+#if (WAKEUP_TYPE == RTC_TIMER)
+    /* Create an rtc object */
+    RTCZero rtc;
+#endif
+
+
+// Set DEBUG_MESSAGES to 1 to enable debug messages to USB terminal
+//                Set to 0 for final firmware compile when ready for field use with no USB terminal
+#define DEBUG_MESSAGES (0)   
 //
 #if DEBUG_MESSAGES
     #define D(x) Serial.print(x);
@@ -53,6 +78,8 @@
 #endif
 
 #define LED (13)  // SOLoRa Red LED port pin
+// LED consumes ~1.1mA. 100ms pulse = 110uA*s = 0.0303uA*hrs
+
 
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
@@ -86,11 +113,11 @@ static const u1_t PROGMEM APPKEY[16] = { 0x26, 0x12, 0x02, 0x4C, 0x0C, 0x80, 0x0
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
 static uint8_t mydata[] = "Hello, world!";
-static osjob_t sendjob;
+static osjob_t send_packet_job;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 60;
+const unsigned TX_INTERVAL = 15; // set fast in this example for debugging
 
 // Pin mapping
 //#if defined(ARDUINO_SAMD_FEATHER_M0)
@@ -107,6 +134,14 @@ const lmic_pinmap lmic_pins = {
 //#else
 //# error "Unknown target"
 //#endif
+
+
+
+void alarmMatch()  {
+    // Schedule next packet send in 50 clicks
+    os_setTimedCallback(&send_packet_job,50, send_packet);
+}
+
 
 void onEvent (ev_t ev) {
     D(os_getTime());
@@ -135,8 +170,8 @@ void onEvent (ev_t ev) {
                 u1_t nwkKey[16];
                 u1_t artKey[16];
                 LMIC_getSessionKeys(&netid, &devaddr, nwkKey, artKey);
-                D("netid: ");
-                DL2(netid, DEC);
+                //D("netid: ");
+                //DL2(netid, DEC);
                 D("devaddr: ");
                 DL2(devaddr, HEX);
                 D("artKey: ");
@@ -154,8 +189,8 @@ void onEvent (ev_t ev) {
                 }
                 DL("");
                 // Blink twice to show join success
-               digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);delay(100);
-               digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);
+                digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);delay(100);
+                digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);
 
             }
             // Disable link check validation (automatically enabled
@@ -196,10 +231,23 @@ void onEvent (ev_t ev) {
             }
             // Blink one once to denote txComplete. comment next statement to save power (~50uA*s/transmission)
             digitalWrite(LED, HIGH);delay(50);digitalWrite(LED, LOW);
+            
+            // Prepare for Sleep/Idle
+#if (WAKEUP_TYPE == RTC_TIMER)
             // Schedule next transmission
-            os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
+            // Sleep for a period of TX_INTERVAL using single shot alarm
+            rtc.setAlarmEpoch(rtc.getEpoch() + TX_INTERVAL);
+            rtc.enableAlarm(rtc.MATCH_YYMMDDHHMMSS);
+            rtc.standbyMode();
+            // try RTCZERO with LP_Sleep() in the future
+#else            
+            // WAKEUP_TYPE == HW_INTERRUPT  
+            SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+            __DSB();
+            __WFI();
+            // will only wakeup with pin interrupt
+#endif     
             break;
-//            break;
         case EV_LOST_TSYNC:
             DL(F("EV_LOST_TSYNC"));
             break;
@@ -234,7 +282,7 @@ void onEvent (ev_t ev) {
     }
 }
 
-void do_send(osjob_t* j){
+void send_packet(osjob_t* j){
     // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
         DL(F("OP_TXRXPEND, not sending"));
@@ -247,8 +295,14 @@ void do_send(osjob_t* j){
 }
 
 void setup() {
-      // initialize digital pin LED as an output.
+    // initialize all pins as inputs_pullup to save power
+    // other init functions will change pinMode to suit specific needs
+    for(int i; i<39; i++) {
+        pinMode(i, INPUT_PULLUP);
+    }
+    //digital pin LED as an output.     
     pinMode(LED, OUTPUT);
+    digitalWrite(LED, LOW);
     delay(1000);    // 2 x blinks to confirm startup
     digitalWrite(LED, HIGH);delay(200);digitalWrite(LED, LOW);delay(200);
     digitalWrite(LED, HIGH);delay(200);digitalWrite(LED, LOW);delay(200);
@@ -260,7 +314,12 @@ void setup() {
             ;
         Serial.begin(9600);
         DL(F("Starting"));
+    #else
+        // USB port consumes extra current
+        USBDevice.detach();
     #endif
+
+
 
     //
     // init calls for SOLoRa on-board features
@@ -278,9 +337,22 @@ void setup() {
     //init_readBatteryVoltage();
     //
 
+
+#if (WAKEUP_TYPE == RTC_TIMER)
+    // Initialize RTC
+    rtc.begin();
+    // Use RTC as a second timer instead of calendar
+    rtc.setEpoch(0);
+    rtc.attachInterrupt(alarmMatch);
+#endif
+
+
+
     //
     // Put your sensor initialization calls here 
     //
+
+
 
     // LMIC init
     os_init();
@@ -291,8 +363,15 @@ void setup() {
     LMIC_setDrTxpow(DR_SF7,2); //
     LMIC_selectSubBand(1);
 
+//-for leakage testing 
+    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+    __DSB();
+    __WFI();
+ 
+
+
     // Start job (sending automatically starts OTAA too)
-    do_send(&sendjob);
+    send_packet(&send_packet_job);
 }
 
 void loop() {

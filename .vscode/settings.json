@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "lowpower.h": "c",
+        "arduino.h": "c"
+    }
+}
